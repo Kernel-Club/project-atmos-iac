@@ -98,6 +98,19 @@ No AWS keys are stored in GitHub. Each role trusts only `Kernel-Club/project-atm
 | `production` (needs approval) | `project-atmos-github-prod` | edit, namespace `prod` |
 | `platform` (needs approval) | `project-atmos-github-platform` | cluster admin |
 
+## CI pipeline
+
+The workflow [`iac-pipeline.yml`](.github/workflows/iac-pipeline.yml) runs on every push to `main`. It needs no AWS access and never changes the real infrastructure. If a step fails, the pipeline fails.
+
+| Step | What it checks |
+|---|---|
+| `terraform fmt` | code style |
+| `terraform validate` | syntax and references, for the root and `bootstrap/` |
+| `tflint` | mistakes and bad practices (config: `.tflint.hcl`) |
+| `trivy config` | security problems, HIGH and CRITICAL only |
+
+Findings we accept on purpose are listed in `.trivyignore` with a reason. To run the same checks locally: `terraform fmt -check -recursive`, `tflint --recursive --config "$PWD/.tflint.hcl"`, `trivy config . --severity HIGH,CRITICAL`.
+
 ## Secrets
 
 `project-atmos/<env>/openweather-api-key` and `project-atmos/<env>/mongodb` (`<env>` = `dev` or `prod`). External Secrets Operator reads them through Pod Identity and creates Kubernetes Secrets. Values are also kept in the Terraform state, which lives in the private, encrypted S3 bucket. Never commit keys, `.tfvars` or state files.

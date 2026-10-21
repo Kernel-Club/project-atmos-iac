@@ -6,6 +6,12 @@
 *.tfstate.*
 *.tfstate.backup
 
+# Local override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Terraform plans
 *.tfplan
 tfplan
@@ -14,9 +20,13 @@ tfplan
 *.tfvars
 !*.tfvars.example
 *.auto.tfvars
+*.tfvars.json
 
 # Credentials and secrets
 *.pem
+*.p12
+*.pfx
+credentials
 *.key
 .env
 .env.*

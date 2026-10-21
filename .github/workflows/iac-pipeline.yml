@@ -1,0 +1,52 @@
+# Checks the Terraform code on every push to main.
+name: IaC pipeline
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.16.x
+
+      # Code style check
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff
+
+      # "init -backend=false" skips S3, so no AWS login is needed.
+      - name: validate (root)
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: validate (bootstrap)
+        working-directory: bootstrap
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      # Linter: finds mistakes and bad practices
+      - uses: terraform-linters/setup-tflint@v4
+
+      - name: tflint
+        run: |
+          tflint --init
+          tflint --recursive --config "$GITHUB_WORKSPACE/.tflint.hcl"
+
+      # Security scan: finds risky settings (open ports, no encryption, ...)
+      - name: trivy config scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          exit-code: "1"
