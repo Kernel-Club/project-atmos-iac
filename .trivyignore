@@ -1,0 +1,11 @@
+# Trivy findings we accept on purpose (small learning project, tiny AWS budget).
+# Remove a line when you fix the problem.
+
+# Public subnets give public IPs to nodes. Cheaper than NAT gateways.
+AWS-0164
+# EKS API is open to the internet so we can use kubectl from home.
+AWS-0040
+AWS-0041
+# No KMS key for EKS secrets and the state bucket (KMS keys cost money).
+AWS-0039
+AWS-0132
