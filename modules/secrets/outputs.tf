@@ -12,5 +12,3 @@ output "external_secrets_role_arn" {
   description = "IAM role used by External Secrets Operator"
   value       = aws_iam_role.external_secrets.arn
 }
-# Names of the secrets. You will use them in the Kubernetes manifests (ExternalSecret)
-# in the project-atmos-k8s repository.

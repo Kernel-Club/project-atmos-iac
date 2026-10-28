@@ -52,4 +52,3 @@ variable "node_max_size" {
   description = "Largest number of worker nodes"
   type        = number
 }
-# Inputs of the EKS module. The values come from main.tf in the project root.

@@ -1,8 +1,6 @@
 locals {
   cluster_name = "${var.project_name}-eks"
 }
-# The EKS cluster name. We need it now because the subnets must be tagged with it
-# so that Kubernetes knows where it may create load balancers.
 
 module "network" {
   source = "./modules/network"
@@ -13,8 +11,6 @@ module "network" {
   availability_zones = var.availability_zones
   enable_nat_gateway = var.enable_nat_gateway
 }
-# Calls the network module (the folder modules/network) and gives it the inputs it needs.
-# Later we will add more modules here: eks, iam, secrets.
 
 module "eks" {
   source = "./modules/eks"
@@ -31,11 +27,6 @@ module "eks" {
   node_min_size       = var.node_min_size
   node_max_size       = var.node_max_size
 }
-# Calls the EKS module.
-# - cluster_subnet_ids: the control plane gets network interfaces in all four subnets.
-# - node_subnet_ids: nodes go to PRIVATE subnets when NAT is on (the target design).
-#   If you turn NAT off to save money, nodes move to PUBLIC subnets, because
-#   private nodes without NAT cannot reach the internet and would never join.
 
 module "github_actions" {
   source = "./modules/github-actions"
@@ -47,8 +38,6 @@ module "github_actions" {
   github_repo  = var.github_repo
   environments = var.github_environments
 }
-# Calls the github-actions module. It uses the cluster name from the EKS module,
-# so Terraform creates the cluster first and the roles after it.
 
 module "secrets" {
   source = "./modules/secrets"
@@ -58,8 +47,6 @@ module "secrets" {
   environments        = toset([for name, env in var.github_environments : name if env.namespace != null])
   openweather_api_key = var.openweather_api_key
 }
-# Calls the secrets module. It creates secrets for every environment that has a
-# namespace (dev and prod). "platform" has no namespace, so it gets no secrets.
 
 module "lb_controller" {
   source = "./modules/lb-controller"
@@ -67,5 +54,3 @@ module "lb_controller" {
   project_name = var.project_name
   cluster_name = module.eks.cluster_name
 }
-# Calls the load balancer module. It only creates the AWS permissions.
-# The controller program itself is installed later with Helm by the platform workflow.

@@ -13,6 +13,3 @@ terraform {
     }
   }
 }
-# Which versions of Terraform and the AWS plugin this project is allowed to use.
-# Same versions as bootstrap, so everything behaves the same everywhere.
-# "random" is a plugin that makes random values (we use it for the MongoDB password).

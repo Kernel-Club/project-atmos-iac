@@ -30,5 +30,3 @@ variable "environments" {
     namespace          = optional(string)
   }))
 }
-# Inputs of the module. The values come from main.tf in the project root.
-# namespace = null means the role may change the WHOLE cluster (used for the platform role).

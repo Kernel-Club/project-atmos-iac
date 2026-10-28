@@ -3,11 +3,8 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project   = "project-atmos"
+      Project   = var.project_name
       ManagedBy = "terraform"
     }
   }
 }
-# Configures the AWS plugin: which region to use.
-# default_tags adds the same tags to every resource, so you can find
-# everything from this project in the AWS console (and check what costs money).

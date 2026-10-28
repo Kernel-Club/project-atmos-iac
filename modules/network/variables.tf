@@ -22,4 +22,3 @@ variable "enable_nat_gateway" {
   description = "Create a NAT Gateway for the private subnets"
   type        = bool
 }
-# Inputs of the network module. The values come from main.tf in the project root.

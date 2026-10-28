@@ -14,18 +14,18 @@ Terraform for the AWS infrastructure of **Project Atmos**, a weather app (React,
 
 | Module | Resources |
 |---|---|
-| `bootstrap/` | S3 bucket for Terraform state (applied once, never destroyed) |
+| `bootstrap/` | S3 bucket for Terraform state and the IAM roles of the pipeline (applied once, never destroyed) |
 | `modules/network` | VPC, 2 public + 2 private subnets in 2 AZs, Internet Gateway, one shared NAT Gateway |
 | `modules/eks` | EKS cluster, managed node group in private subnets, IAM roles, add-ons (VPC CNI, kube-proxy, CoreDNS, Pod Identity Agent, EBS CSI) |
 | `modules/github-actions` | OIDC IAM roles for GitHub Actions: `dev`, `prod`, `platform` |
 | `modules/secrets` | Secrets Manager secrets (OpenWeather key, generated MongoDB password) and the IAM role for External Secrets Operator |
 | `modules/lb-controller` | IAM role and policy for the AWS Load Balancer Controller |
 
-The load balancer, MongoDB volumes and everything inside Kubernetes are **not** created by Terraform — they are created from the cluster. Every `.tf` file has short comments explaining each block.
+The load balancer, MongoDB volumes and everything inside Kubernetes are **not** created by Terraform — they are created from the cluster.
 
 ## Usage
 
-Requirements: Terraform `~> 1.16.0`, AWS CLI v2, `kubectl`, `helm`, and an IAM user (not root) for account `155980439303`. Set credentials in the terminal only, never in files (fish: `set -gx NAME "value"`, bash/zsh: `export NAME="value"`).
+Requirements: Terraform `~> 1.16.0`, AWS CLI v2, `kubectl`, `helm`, and an IAM user (not root). Set credentials in the terminal only, never in files (fish: `set -gx NAME "value"`, bash/zsh: `export NAME="value"`).
 
 **Once:** create the state bucket.
 
@@ -33,7 +33,7 @@ Requirements: Terraform `~> 1.16.0`, AWS CLI v2, `kubectl`, `helm`, and an IAM u
 cd bootstrap && terraform init && terraform apply
 ```
 
-**Every session:**
+**Every session:** merge to `main` and approve the `apply` job (see [CI pipeline](#ci-pipeline)). The same from a terminal:
 
 ```bash
 export TF_VAR_openweather_api_key="<key>"   # secret, never put it in a file
@@ -100,16 +100,35 @@ No AWS keys are stored in GitHub. Each role trusts only `Kernel-Club/project-atm
 
 ## CI pipeline
 
-The workflow [`iac-pipeline.yml`](.github/workflows/iac-pipeline.yml) runs on every push to `main`. It needs no AWS access and never changes the real infrastructure. If a step fails, the pipeline fails.
+[`iac-pipeline.yml`](.github/workflows/iac-pipeline.yml) runs Terraform on the GitHub runner.
 
-| Step | What it checks |
+| Event | Jobs |
 |---|---|
-| `terraform fmt` | code style |
-| `terraform validate` | syntax and references, for the root and `bootstrap/` |
-| `tflint` | mistakes and bad practices (config: `.tflint.hcl`) |
-| `trivy config` | security problems, HIGH and CRITICAL only |
+| pull request | `checks` → `plan` (posted as a PR comment and in the run Summary) |
+| push to `main` | `checks` → `plan` → `apply` (waits for a manual approval) |
 
-Findings we accept on purpose are listed in `.trivyignore` with a reason. To run the same checks locally: `terraform fmt -check -recursive`, `tflint --recursive --config "$PWD/.tflint.hcl"`, `trivy config . --severity HIGH,CRITICAL`.
+`checks`: `terraform fmt`, `terraform validate` (root and `bootstrap/`), `tflint`, `trivy config` (HIGH and CRITICAL; accepted findings are in `.trivyignore`).
+
+`apply` runs the exact plan that `plan` showed. The plan file is encrypted before it is uploaded, because the repository is public. If the state changed in between, Terraform refuses and changes nothing.
+
+### Setup (GitHub)
+
+| Where | Name | Value |
+|---|---|---|
+| Organization variable | `AWS_ACCOUNT_ID`, `AWS_REGION`, `PROJECT_NAME` | account, region, project name |
+| Organization secret | `OPENWEATHER_API_KEY` | OpenWeather key |
+| Repository variable | `AWS_PLAN_ROLE_ARN`, `AWS_APPLY_ROLE_ARN` | `arn:aws:iam::<account>:role/<project>-iac-plan` and `-iac-apply` |
+| Repository secret | `PLAN_ENCRYPTION_KEY` | `openssl rand -base64 32` |
+| Environment | `infrastructure` | required reviewers, branch `main` only |
+
+No AWS keys are stored: the jobs log in with OIDC. The two roles are created once from `bootstrap/` (`terraform apply`) and are never destroyed.
+
+| Role | Who can use it | Rights |
+|---|---|---|
+| `<project>-iac-plan` | pull requests and `main` of this repository | read only (writes only the state lock file) |
+| `<project>-iac-apply` | only a job in the `infrastructure` environment, after approval | AdministratorAccess |
+
+A running cluster costs about $0.3/hour, so reject the approval when you do not want it now. Destroy is manual (see [Destroy](#destroy)).
 
 ## Secrets
 
@@ -121,3 +140,4 @@ Findings we accept on purpose are listed in `.trivyignore` with a reason. To run
 - The Kubernetes API is public (`0.0.0.0/0`), because GitHub-hosted runners have no fixed IP. Access still requires valid AWS credentials.
 - The domain uses `nip.io`: the load balancer address is known only after creation, so set the hostname in the Gateway configuration in `project-atmos-k8s` for each session.
 - The full configuration has been planned (59 resources) but not applied yet; expect small fixes on the first real apply.
+- The cluster creator gets admin rights. When the pipeline creates the cluster, that is the apply role, not your IAM user, so `kubectl` from your laptop needs an extra EKS access entry for your user.

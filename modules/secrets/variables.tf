@@ -23,4 +23,3 @@ variable "openweather_api_key" {
     error_message = "openweather_api_key must not be empty."
   }
 }
-# Inputs of the module. "sensitive" means Terraform hides the value in its output.
