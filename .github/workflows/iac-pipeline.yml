@@ -2,7 +2,8 @@
 # push to main -> checks + plan + apply (apply waits for a manual approval)
 #
 # Settings come from GitHub, nothing is hardcoded here:
-#   variables: AWS_REGION, PROJECT_NAME (organization); AWS_PLAN_ROLE_ARN, AWS_APPLY_ROLE_ARN (repository)
+#   variables: AWS_ACCOUNT_ID, AWS_REGION, PROJECT_NAME, EKS_ADMIN_ARNS (organization);
+#              AWS_PLAN_ROLE_ARN, AWS_APPLY_ROLE_ARN (repository)
 #   secrets:   OPENWEATHER_API_KEY (organization); PLAN_ENCRYPTION_KEY (repository)
 name: IaC pipeline
 
@@ -26,6 +27,10 @@ env:
   TF_VAR_aws_region: ${{ vars.AWS_REGION }}
   TF_VAR_project_name: ${{ vars.PROJECT_NAME }}
   TF_VAR_github_org: ${{ github.repository_owner }}
+  # JSON list, for example ["arn:aws:iam::123456789012:user/name"]
+  TF_VAR_cluster_admin_arns: ${{ vars.EKS_ADMIN_ARNS || '[]' }}
+  TF_BACKEND_BUCKET: ${{ vars.PROJECT_NAME }}-tfstate-${{ vars.AWS_ACCOUNT_ID }}
+  TF_BACKEND_REGION: ${{ vars.AWS_REGION }}
 
 jobs:
   checks:
@@ -95,7 +100,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: terraform init
-        run: terraform init -input=false
+        run: terraform init -input=false -backend-config="bucket=$TF_BACKEND_BUCKET" -backend-config="region=$TF_BACKEND_REGION"
 
       # exit code: 0 = no changes, 2 = changes, 1 = error
       - name: terraform plan
@@ -191,7 +196,7 @@ jobs:
         run: openssl enc -d -aes-256-cbc -pbkdf2 -pass env:PLAN_ENCRYPTION_KEY -in tfplan.enc -out tfplan
 
       - name: terraform init
-        run: terraform init -input=false
+        run: terraform init -input=false -backend-config="bucket=$TF_BACKEND_BUCKET" -backend-config="region=$TF_BACKEND_REGION"
 
       # Refuses a stale plan: if the state changed after the plan, nothing is applied.
       - name: terraform apply

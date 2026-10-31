@@ -52,3 +52,8 @@ variable "node_max_size" {
   description = "Largest number of worker nodes"
   type        = number
 }
+
+variable "admin_principal_arns" {
+  description = "IAM users or roles that get cluster admin access (for kubectl)"
+  type        = list(string)
+}

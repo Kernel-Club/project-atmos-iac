@@ -26,6 +26,8 @@ module "eks" {
   node_desired_size   = var.node_desired_size
   node_min_size       = var.node_min_size
   node_max_size       = var.node_max_size
+
+  admin_principal_arns = var.cluster_admin_arns
 }
 
 module "github_actions" {

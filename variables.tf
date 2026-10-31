@@ -111,6 +111,12 @@ variable "github_environments" {
   }
 }
 
+variable "cluster_admin_arns" {
+  description = "IAM users or roles with cluster admin access (kubectl). Pipeline: variable EKS_ADMIN_ARNS"
+  type        = list(string)
+  default     = []
+}
+
 # No default on purpose. Pipeline: secret OPENWEATHER_API_KEY. Locally: TF_VAR_openweather_api_key.
 variable "openweather_api_key" {
   description = "OpenWeather API key"

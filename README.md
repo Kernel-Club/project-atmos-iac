@@ -37,7 +37,10 @@ cd bootstrap && terraform init && terraform apply
 
 ```bash
 export TF_VAR_openweather_api_key="<key>"   # secret, never put it in a file
-terraform init
+export TF_VAR_cluster_admin_arns='["arn:aws:iam::<account id>:user/<your user>"]'   # kubectl access
+terraform init \
+  -backend-config="bucket=<project>-tfstate-<account id>" \
+  -backend-config="region=<region>"
 terraform plan
 terraform apply                             # about 15 minutes
 aws eks update-kubeconfig --region ap-northeast-2 --name project-atmos-eks
