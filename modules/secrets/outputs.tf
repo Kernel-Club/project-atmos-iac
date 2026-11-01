@@ -12,3 +12,11 @@ output "external_secrets_role_arn" {
   description = "IAM role used by External Secrets Operator"
   value       = aws_iam_role.external_secrets.arn
 }
+
+output "external_secrets_service_account" {
+  description = "Namespace and service account of External Secrets Operator that get the IAM role"
+  value = {
+    namespace = aws_eks_pod_identity_association.external_secrets.namespace
+    name      = aws_eks_pod_identity_association.external_secrets.service_account
+  }
+}

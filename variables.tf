@@ -120,12 +120,20 @@ variable "github_environments" {
       github_environment = "production"
       namespace          = "prod"
     }
-    # namespace = null: cluster admin, only for installing the platform.
-    platform = {
-      github_environment = "platform"
-      namespace          = null
-    }
   }
+}
+
+# Chart versions of the platform (modules/platform). The Gateway API version is the vendored file there.
+variable "lb_controller_version" {
+  description = "Helm chart version of the AWS Load Balancer Controller"
+  type        = string
+  default     = "3.6.2"
+}
+
+variable "external_secrets_version" {
+  description = "Helm chart version of External Secrets Operator"
+  type        = string
+  default     = "2.14.0"
 }
 
 variable "cluster_admin_arns" {

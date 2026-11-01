@@ -1,5 +1,11 @@
 locals {
   cluster_name = "${var.project_name}-eks"
+  namespaces   = toset([for env in var.github_environments : env.namespace])
+}
+
+# Created in bootstrap/. It runs terraform plan, so it must be able to read the cluster.
+data "aws_iam_role" "plan" {
+  name = "${var.project_name}-iac-plan"
 }
 
 module "network" {
@@ -27,7 +33,8 @@ module "eks" {
   node_min_size       = var.node_min_size
   node_max_size       = var.node_max_size
 
-  admin_principal_arns = var.cluster_admin_arns
+  admin_principal_arns  = var.cluster_admin_arns
+  viewer_principal_arns = [data.aws_iam_role.plan.arn]
 }
 
 module "github_actions" {
@@ -48,7 +55,7 @@ module "secrets" {
 
   project_name        = var.project_name
   cluster_name        = module.eks.cluster_name
-  environments        = toset([for name, env in var.github_environments : name if env.namespace != null])
+  environments        = toset(keys(var.github_environments))
   openweather_api_key = var.openweather_api_key
 }
 
@@ -57,4 +64,22 @@ module "lb_controller" {
 
   project_name = var.project_name
   cluster_name = module.eks.cluster_name
+}
+
+# Everything the Helm chart in project-atmos-k8s expects from the cluster:
+# namespaces, StorageClass, Gateway API, Load Balancer Controller, External Secrets, RBAC for the deploy roles.
+module "platform" {
+  source = "./modules/platform"
+
+  cluster_name   = module.eks.ready_cluster_name
+  region         = var.aws_region
+  vpc_id         = module.network.vpc_id
+  namespaces     = local.namespaces
+  deployer_group = module.github_actions.deployer_group
+
+  lb_controller_service_account    = module.lb_controller.service_account
+  external_secrets_service_account = module.secrets.external_secrets_service_account
+
+  lb_controller_version    = var.lb_controller_version
+  external_secrets_version = var.external_secrets_version
 }

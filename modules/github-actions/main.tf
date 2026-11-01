@@ -1,3 +1,9 @@
+locals {
+  # AmazonEKSEditPolicy does not cover CRDs (ExternalSecret, Gateway, ...).
+  # modules/platform gives this group a Role for them in each namespace.
+  deployer_group = "deployers"
+}
+
 data "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 }
@@ -6,7 +12,7 @@ resource "aws_iam_role" "deploy" {
   for_each = var.environments
 
   name        = "${var.project_name}-github-${each.key}"
-  description = "Used by GitHub Actions to deploy to ${each.value.namespace != null ? "the ${each.value.namespace} namespace" : "the whole cluster"}"
+  description = "Used by GitHub Actions to deploy to the ${each.value.namespace} namespace"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -49,12 +55,10 @@ resource "aws_iam_role_policy" "describe_cluster" {
 resource "aws_eks_access_entry" "deploy" {
   for_each = var.environments
 
-  cluster_name  = var.cluster_name
-  principal_arn = aws_iam_role.deploy[each.key].arn
-  type          = "STANDARD"
-  # AmazonEKSEditPolicy does not cover CRDs (ExternalSecret, Gateway, ...).
-  # The platform workflow gives this group a Role for them in each namespace.
-  kubernetes_groups = each.value.namespace != null ? ["deployers"] : null
+  cluster_name      = var.cluster_name
+  principal_arn     = aws_iam_role.deploy[each.key].arn
+  type              = "STANDARD"
+  kubernetes_groups = [local.deployer_group]
 }
 
 resource "aws_eks_access_policy_association" "deploy" {
@@ -62,11 +66,11 @@ resource "aws_eks_access_policy_association" "deploy" {
 
   cluster_name  = var.cluster_name
   principal_arn = aws_iam_role.deploy[each.key].arn
-  policy_arn    = each.value.namespace != null ? "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy" : "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSEditPolicy"
 
   access_scope {
-    type       = each.value.namespace != null ? "namespace" : "cluster"
-    namespaces = each.value.namespace != null ? [each.value.namespace] : null
+    type       = "namespace"
+    namespaces = [each.value.namespace]
   }
 
   depends_on = [aws_eks_access_entry.deploy]

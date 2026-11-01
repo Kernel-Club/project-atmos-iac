@@ -34,9 +34,9 @@ variable "github_repo_id" {
 }
 
 variable "environments" {
-  description = "One entry per deploy target: the GitHub Environment name and the Kubernetes namespace it may change (null = whole cluster)"
+  description = "One entry per deploy target: the GitHub Environment name and the Kubernetes namespace it may change"
   type = map(object({
     github_environment = string
-    namespace          = optional(string)
+    namespace          = string
   }))
 }

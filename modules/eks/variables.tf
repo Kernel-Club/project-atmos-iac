@@ -57,3 +57,8 @@ variable "admin_principal_arns" {
   description = "IAM users or roles that get cluster admin access (for kubectl)"
   type        = list(string)
 }
+
+variable "viewer_principal_arns" {
+  description = "IAM roles that may read everything in the cluster, Secrets included (terraform plan)"
+  type        = list(string)
+}

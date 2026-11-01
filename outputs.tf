@@ -47,3 +47,13 @@ output "external_secrets_role_arn" {
   description = "IAM role of External Secrets Operator"
   value       = module.secrets.external_secrets_role_arn
 }
+
+output "app_namespaces" {
+  description = "Namespaces where project-atmos-k8s deploys the app"
+  value       = module.platform.namespaces
+}
+
+output "gateway_class_name" {
+  description = "GatewayClass for gateway.className in project-atmos-k8s"
+  value       = module.platform.gateway_class_name
+}

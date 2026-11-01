@@ -8,7 +8,7 @@ Terraform for the AWS infrastructure of **Project Atmos**, a weather app (React,
 | [`project-atmos-k8s`](https://github.com/Kernel-Club/project-atmos-k8s) | Kubernetes / Helm configuration |
 | `project-atmos-iac` | AWS infrastructure (this repo) |
 
-> **Cost.** A running cluster costs about **$0.3/hour**. Create it for short sessions and always [destroy](#destroy) it right after.
+> **Cost.** A running cluster costs about **$0.25/hour**. Create it for short sessions and always [destroy](#destroy) it right after.
 
 ## What it creates
 
@@ -17,11 +17,14 @@ Terraform for the AWS infrastructure of **Project Atmos**, a weather app (React,
 | `bootstrap/` | S3 bucket for Terraform state and the IAM roles of the pipeline (applied once, never destroyed) |
 | `modules/network` | VPC, 2 public + 2 private subnets in 2 AZs, Internet Gateway, one shared NAT Gateway |
 | `modules/eks` | EKS cluster, managed node group in private subnets, IAM roles, add-ons (VPC CNI, kube-proxy, CoreDNS, Pod Identity Agent, EBS CSI) |
-| `modules/github-actions` | OIDC IAM roles for GitHub Actions: `dev`, `prod`, `platform` |
+| `modules/github-actions` | OIDC IAM roles for GitHub Actions: `dev`, `prod` |
 | `modules/secrets` | Secrets Manager secrets (OpenWeather key, generated MongoDB password) and the IAM role for External Secrets Operator |
 | `modules/lb-controller` | IAM role and policy for the AWS Load Balancer Controller |
+| `modules/platform` | Inside the cluster: namespaces `dev`/`prod`, default StorageClass `gp3`, Gateway API CRDs, AWS Load Balancer Controller (Gateway API on), GatewayClass `aws-alb`, External Secrets Operator, RBAC for the deploy roles on the chart's CRDs |
 
-The load balancer, MongoDB volumes and everything inside Kubernetes are **not** created by Terraform — they are created from the cluster.
+`modules/platform` uses the `helm`, `kubernetes` and `kubectl` (`alekc/kubectl`) providers. They connect to the cluster of this same stack with a token from `aws eks get-token`. Chart versions: variables `lb_controller_version`, `external_secrets_version`. The Gateway API CRDs are the vendored release file `modules/platform/gateway-api-crds.yaml` (v1.6.0); to update, download `standard-install.yaml` of the new release over it.
+
+The app itself (`project-atmos-k8s`), its load balancer and its MongoDB volumes are **not** created by Terraform — they are created from the cluster.
 
 ## Usage
 
@@ -46,23 +49,24 @@ terraform apply                             # about 15 minutes
 aws eks update-kubeconfig --region ap-northeast-2 --name project-atmos-eks
 ```
 
-Then run the `Platform` workflow in `project-atmos-k8s` (installs the Load Balancer Controller, External Secrets and the `dev`/`prod` namespaces) and deploy the app.
+After `apply` the cluster is ready for the app: deploy it with the CD workflow of `project-atmos-k8s`.
 
 ### Variables that change the cost
 
 | Variable | Default | Note |
 |---|---|---|
 | `enable_nat_gateway` | `true` | `false` saves about $0.06/h, nodes then run in public subnets |
-| `node_instance_type` | `t3.medium` | `t3.small` is too small for the full stack |
+| `node_instance_type` | `t8i.small` | The account is on the AWS Free plan, only free-tier types start |
 | `node_capacity_type` | `ON_DEMAND` | `SPOT` is about 70% cheaper but can be interrupted |
 | `node_max_size` | `2` | Caps the bill |
 | `cluster_version` | `1.36` | Keep it in standard support; extended support costs $0.60/h |
 
 ## Destroy
 
-The load balancer and EBS volumes are created by Kubernetes, so **delete them first**, otherwise `destroy` can hang on the VPC and keep costing money.
+The load balancer and EBS volumes are created by Kubernetes, so **delete them first**, otherwise `destroy` can hang on the VPC and keep costing money. Do it while the Load Balancer Controller is still running: `terraform destroy` removes it, and then nobody deletes the ALB.
 
 ```bash
+helm uninstall atmos -n dev; helm uninstall atmos -n prod
 kubectl delete gateway,ingress --all -A
 kubectl delete svc --all -A --field-selector spec.type=LoadBalancer
 kubectl delete pvc --all -A
@@ -87,9 +91,9 @@ The AWS Budget only sends warnings, it does not stop anything. Check **Billing**
 |---|---:|
 | EKS control plane | 0.10 |
 | NAT Gateway | 0.06 |
-| 2 × t3.medium | 0.10 |
+| 2 × t8i.small | ≈ 0.05 |
 | Load balancer | 0.025 |
-| **Total** | **≈ 0.29** |
+| **Total** | **≈ 0.24** |
 
 ## GitHub Actions access (OIDC)
 
@@ -99,7 +103,8 @@ No AWS keys are stored in GitHub. Each role trusts only `Kernel-Club/project-atm
 |---|---|---|
 | `development` | `project-atmos-github-dev` | edit, namespace `dev` |
 | `production` (needs approval) | `project-atmos-github-prod` | edit, namespace `prod` |
-| `platform` (needs approval) | `project-atmos-github-platform` | cluster admin |
+
+Both roles are in the Kubernetes group `deployers`; `modules/platform` gives it the chart's CRDs (ExternalSecret, Gateway, ...) in its namespace. Nothing outside this repository has cluster admin.
 
 ## CI pipeline
 
@@ -128,10 +133,10 @@ No AWS keys are stored: the jobs log in with OIDC. The two roles are created onc
 
 | Role | Who can use it | Rights |
 |---|---|---|
-| `<project>-iac-plan` | pull requests and `main` of this repository | read only (writes only the state lock file) |
-| `<project>-iac-apply` | only a job in the `infrastructure` environment, after approval | AdministratorAccess |
+| `<project>-iac-plan` | pull requests and `main` of this repository | read only (writes only the state lock file); in the cluster `AmazonEKSAdminViewPolicy`, because plan reads Helm releases |
+| `<project>-iac-apply` | only a job in the `infrastructure` environment, after approval | AdministratorAccess; cluster admin as the cluster creator |
 
-A running cluster costs about $0.3/hour, so reject the approval when you do not want it now. Destroy is manual (see [Destroy](#destroy)).
+A running cluster costs about $0.25/hour, so reject the approval when you do not want it now. Destroy is manual (see [Destroy](#destroy)).
 
 ## Secrets
 
@@ -141,6 +146,5 @@ A running cluster costs about $0.3/hour, so reject the approval when you do not 
 
 - One cluster for DEV and PROD, separated by namespaces only (cost decision).
 - The Kubernetes API is public (`0.0.0.0/0`), because GitHub-hosted runners have no fixed IP. Access still requires valid AWS credentials.
-- The domain uses `nip.io`: the load balancer address is known only after creation, so set the hostname in the Gateway configuration in `project-atmos-k8s` for each session.
-- The full configuration has been planned (59 resources) but not applied yet; expect small fixes on the first real apply.
-- The cluster creator gets admin rights. When the pipeline creates the cluster, that is the apply role, not your IAM user, so `kubectl` from your laptop needs an extra EKS access entry for your user.
+- HTTP only: there is no domain, so the app is reached by the load balancer address.
+- The cluster creator gets admin rights. When the pipeline creates the cluster, that is the apply role, not your IAM user, so `kubectl` from your laptop needs an extra EKS access entry for your user. The other way round: if you create the cluster from your laptop, the pipeline's apply role has no cluster rights and cannot manage `modules/platform`. Create the cluster from the pipeline.
