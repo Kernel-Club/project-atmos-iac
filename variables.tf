@@ -42,9 +42,12 @@ variable "public_access_cidrs" {
 }
 
 variable "node_instance_type" {
+  # The account is on the AWS Free plan: only free-tier types can start
+  # (t3.micro, t3.small, c7i-flex.large, m7i-flex.large, ...).
+  # t8i.small: like t3.small, newer CPU, less popular, offered in all 4 AZs.
   description = "EC2 instance type of the worker nodes"
   type        = string
-  default     = "t3.medium"
+  default     = "t8i.small"
 }
 
 variable "node_capacity_type" {
