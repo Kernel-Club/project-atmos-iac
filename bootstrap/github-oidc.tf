@@ -7,7 +7,8 @@ data "aws_iam_openid_connect_provider" "github" {
 
 locals {
   github_oidc_arn = data.aws_iam_openid_connect_provider.github.arn
-  repo_full_name  = "${var.github_org}/${var.iac_repo}"
+  # Same format as the "sub" claim that GitHub sends: name@id/name@id
+  repo_full_name = "${var.github_org}@${var.github_org_id}/${var.iac_repo}@${var.iac_repo_id}"
 }
 
 resource "aws_iam_role" "plan" {

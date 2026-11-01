@@ -22,6 +22,20 @@ variable "iac_repo" {
   default     = "project-atmos-iac"
 }
 
+# GitHub puts these IDs into the OIDC "sub" claim:
+# repo:Kernel-Club@<org id>/project-atmos-iac@<repo id>:...
+variable "github_org_id" {
+  description = "Numeric ID of the GitHub organization"
+  type        = string
+  default     = "328984030"
+}
+
+variable "iac_repo_id" {
+  description = "Numeric ID of this repository"
+  type        = string
+  default     = "1422464577"
+}
+
 variable "apply_environment" {
   description = "GitHub Environment (with required reviewers) that is allowed to run terraform apply"
   type        = string
