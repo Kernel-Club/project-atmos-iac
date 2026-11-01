@@ -33,12 +33,14 @@ module "eks" {
 module "github_actions" {
   source = "./modules/github-actions"
 
-  project_name = var.project_name
-  cluster_name = module.eks.cluster_name
-  cluster_arn  = module.eks.cluster_arn
-  github_org   = var.github_org
-  github_repo  = var.github_repo
-  environments = var.github_environments
+  project_name   = var.project_name
+  cluster_name   = module.eks.cluster_name
+  cluster_arn    = module.eks.cluster_arn
+  github_org     = var.github_org
+  github_repo    = var.github_repo
+  github_org_id  = var.github_org_id
+  github_repo_id = var.github_repo_id
+  environments   = var.github_environments
 }
 
 module "secrets" {

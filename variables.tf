@@ -88,6 +88,20 @@ variable "github_repo" {
   default     = "project-atmos-k8s"
 }
 
+# GitHub puts these IDs into the OIDC "sub" claim:
+# repo:Kernel-Club@<org id>/project-atmos-k8s@<repo id>:...
+variable "github_org_id" {
+  description = "Numeric ID of the GitHub organization"
+  type        = string
+  default     = "328984030"
+}
+
+variable "github_repo_id" {
+  description = "Numeric ID of the application repository"
+  type        = string
+  default     = "1390978657"
+}
+
 variable "github_environments" {
   description = "Deploy targets: GitHub Environment name and Kubernetes namespace"
   type = map(object({

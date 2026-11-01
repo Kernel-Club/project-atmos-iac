@@ -23,6 +23,16 @@ variable "github_repo" {
   type        = string
 }
 
+variable "github_org_id" {
+  description = "Numeric ID of the GitHub organization (part of the OIDC sub claim)"
+  type        = string
+}
+
+variable "github_repo_id" {
+  description = "Numeric ID of the application repository (part of the OIDC sub claim)"
+  type        = string
+}
+
 variable "environments" {
   description = "One entry per deploy target: the GitHub Environment name and the Kubernetes namespace it may change (null = whole cluster)"
   type = map(object({
