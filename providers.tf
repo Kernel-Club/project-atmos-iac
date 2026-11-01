@@ -37,15 +37,3 @@ provider "helm" {
     exec                   = local.kube_exec
   }
 }
-
-provider "kubectl" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_ca_certificate)
-  load_config_file       = false
-
-  exec {
-    api_version = local.kube_exec.api_version
-    command     = local.kube_exec.command
-    args        = local.kube_exec.args
-  }
-}

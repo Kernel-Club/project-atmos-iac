@@ -1,24 +1,6 @@
-# Versions are in the root versions.tf. kubectl is not a hashicorp provider, so its source is needed here;
-# kubernetes is listed because provider functions need an explicit entry.
-terraform {
-  required_providers {
-    kubernetes = {
-      source = "hashicorp/kubernetes"
-    }
-    kubectl = {
-      source = "alekc/kubectl"
-    }
-  }
-}
-
 locals {
-  # Official release file (standard-install.yaml). Do not edit by hand, download a new one when updating:
-  # https://github.com/kubernetes-sigs/gateway-api/releases/download/<version>/standard-install.yaml
-  # A provider function, not a data source: it works before the cluster exists (first plan).
-  gateway_api_manifests = {
-    for m in provider::kubernetes::manifest_decode_multi(file("${path.module}/gateway-api-crds.yaml")) :
-    "${m.kind}/${m.metadata.name}" => m
-  }
+  # Must match gateway.className in project-atmos-k8s (charts/atmos/values.yaml).
+  gateway_class_name = "aws-alb"
 }
 
 resource "kubernetes_namespace_v1" "app" {
@@ -50,13 +32,21 @@ resource "kubernetes_storage_class_v1" "gp3" {
   }
 }
 
-# Server-side apply: the CRDs are too big for the last-applied annotation.
-resource "kubectl_manifest" "gateway_api" {
-  for_each = local.gateway_api_manifests
+# Local chart: the official release file (standard-install.yaml) split into crds/ and templates/, plus the GatewayClass.
+# Helm installs crds/ first, so the GatewayClass kind exists when it is created.
+# A Helm release, not raw manifests: it plans before the cluster exists (first plan).
+resource "helm_release" "gateway_api" {
+  name      = "gateway-api"
+  chart     = "${path.module}/charts/gateway-api"
+  namespace = "kube-system"
 
-  yaml_body         = yamlencode(each.value)
-  server_side_apply = true
-  wait              = true
+  atomic  = true
+  wait    = true
+  timeout = 300
+
+  set = [
+    { name = "gatewayClassName", value = local.gateway_class_name },
+  ]
 }
 
 # The Load Balancer Controller needs the Gateway API CRDs when it starts.
@@ -81,19 +71,7 @@ resource "helm_release" "lb_controller" {
     { name = "replicaCount", value = "1" },
   ]
 
-  depends_on = [kubectl_manifest.gateway_api]
-}
-
-# The name must match gateway.className in project-atmos-k8s (charts/atmos/values.yaml).
-resource "kubectl_manifest" "gateway_class" {
-  yaml_body = yamlencode({
-    apiVersion = "gateway.networking.k8s.io/v1"
-    kind       = "GatewayClass"
-    metadata   = { name = "aws-alb" }
-    spec       = { controllerName = "gateway.k8s.aws/alb" }
-  })
-
-  depends_on = [helm_release.lb_controller]
+  depends_on = [helm_release.gateway_api]
 }
 
 # The IAM role comes from Pod Identity (modules/secrets): namespace and service account must match.

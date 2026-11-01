@@ -22,7 +22,7 @@ Terraform for the AWS infrastructure of **Project Atmos**, a weather app (React,
 | `modules/lb-controller` | IAM role and policy for the AWS Load Balancer Controller |
 | `modules/platform` | Inside the cluster: namespaces `dev`/`prod`, default StorageClass `gp3`, Gateway API CRDs, AWS Load Balancer Controller (Gateway API on), GatewayClass `aws-alb`, External Secrets Operator, RBAC for the deploy roles on the chart's CRDs |
 
-`modules/platform` uses the `helm`, `kubernetes` and `kubectl` (`alekc/kubectl`) providers. They connect to the cluster of this same stack with a token from `aws eks get-token`. Chart versions: variables `lb_controller_version`, `external_secrets_version`. The Gateway API CRDs are the vendored release file `modules/platform/gateway-api-crds.yaml` (v1.6.0); to update, download `standard-install.yaml` of the new release over it.
+`modules/platform` uses the `helm` and `kubernetes` providers. They connect to the cluster of this same stack with a token from `aws eks get-token`. Chart versions: variables `lb_controller_version`, `external_secrets_version`. The Gateway API CRDs (v1.6.0) and the GatewayClass are the local chart `modules/platform/charts/gateway-api`; its `crds/` and `templates/validating-admission-policy.yaml` are the vendored release file `standard-install.yaml`, split because `crds/` may hold only CRDs. Helm does not upgrade `crds/`: to update, split the new release file the same way, bump the chart version and run `kubectl apply --server-side -f` on the CRDs.
 
 The app itself (`project-atmos-k8s`), its load balancer and its MongoDB volumes are **not** created by Terraform — they are created from the cluster.
 

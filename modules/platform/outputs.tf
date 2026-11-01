@@ -5,5 +5,5 @@ output "namespaces" {
 
 output "gateway_class_name" {
   description = "GatewayClass for gateway.className in the Helm chart"
-  value       = kubectl_manifest.gateway_class.name
+  value       = local.gateway_class_name
 }
