@@ -52,6 +52,9 @@ resource "aws_eks_access_entry" "deploy" {
   cluster_name  = var.cluster_name
   principal_arn = aws_iam_role.deploy[each.key].arn
   type          = "STANDARD"
+  # AmazonEKSEditPolicy does not cover CRDs (ExternalSecret, Gateway, ...).
+  # The platform workflow gives this group a Role for them in each namespace.
+  kubernetes_groups = each.value.namespace != null ? ["deployers"] : null
 }
 
 resource "aws_eks_access_policy_association" "deploy" {
