@@ -46,7 +46,7 @@ terraform apply                             # about 15 minutes
 aws eks update-kubeconfig --region ap-northeast-2 --name project-atmos-eks
 ```
 
-Then run the `platform` workflow in `project-atmos-dev` (installs the Load Balancer Controller, External Secrets and the `dev`/`prod` namespaces) and deploy the app.
+Then run the `Platform` workflow in `project-atmos-k8s` (installs the Load Balancer Controller, External Secrets and the `dev`/`prod` namespaces) and deploy the app.
 
 ### Variables that change the cost
 
@@ -93,7 +93,7 @@ The AWS Budget only sends warnings, it does not stop anything. Check **Billing**
 
 ## GitHub Actions access (OIDC)
 
-No AWS keys are stored in GitHub. Each role trusts only `Kernel-Club/project-atmos-dev` and only a job running in the matching GitHub Environment. Each environment holds the variable `AWS_GITHUB_ACTIONS_ROLE_ARN`; role ARNs are fixed, so the variables stay valid after every destroy.
+No AWS keys are stored in GitHub. Each role trusts only `Kernel-Club/project-atmos-k8s` and only a job running in the matching GitHub Environment. Each environment holds the variable `AWS_GITHUB_ACTIONS_ROLE_ARN`; role ARNs are fixed, so the variables stay valid after every destroy.
 
 | GitHub Environment | IAM role | Rights in Kubernetes |
 |---|---|---|

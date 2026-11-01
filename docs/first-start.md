@@ -12,7 +12,8 @@ Time: about 40 minutes. Cost: about $0.3 per hour while the cluster runs.
    - Organization variable `EKS_ADMIN_ARNS` (your user, for `kubectl`).
    - Secrets: `PLAN_ENCRYPTION_KEY`, `OPENWEATHER_API_KEY`.
    - Environment `infrastructure`: both reviewers, branch `main` only.
-4. Open in tabs: GitHub Actions page, AWS console (region `ap-northeast-2`), this file.
+4. Check GitHub (repo `project-atmos-k8s`): environments `development`, `production`, `platform`, each with `AWS_GITHUB_ACTIONS_ROLE_ARN`. Organization variable `DOCKERHUB_NAMESPACE`.
+5. Open in tabs: GitHub Actions page, AWS console (region `ap-northeast-2`), this file.
 
 ## Part 1: show the plan (pull request)
 
@@ -41,8 +42,8 @@ aws eks update-kubeconfig --region ap-northeast-2 --name project-atmos-eks
 kubectl get nodes
 ```
 
-Then run the `platform` workflow in `project-atmos-dev` and deploy the app.
-(Not ready yet: dev and k8s repositories are still to do.)
+Then, in `project-atmos-k8s`: run the `Platform` workflow once (Actions -> Platform -> Run workflow, approve), then the `CD` workflow (or push to `develop` in `project-atmos-dev`).
+Open the app at the load balancer address from the `CD` run Summary.
 
 ## Part 4: destroy (always!)
 

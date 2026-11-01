@@ -83,9 +83,9 @@ variable "github_org" {
 }
 
 variable "github_repo" {
-  description = "Application repository that is allowed to deploy"
+  description = "Repository whose pipeline deploys to the cluster"
   type        = string
-  default     = "project-atmos-dev"
+  default     = "project-atmos-k8s"
 }
 
 variable "github_environments" {
