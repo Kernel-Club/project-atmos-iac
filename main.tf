@@ -82,4 +82,7 @@ module "platform" {
 
   lb_controller_version    = var.lb_controller_version
   external_secrets_version = var.external_secrets_version
+
+  # Also the EKS access entries: on destroy the platform goes first, while Terraform still has cluster rights.
+  depends_on = [module.eks]
 }
